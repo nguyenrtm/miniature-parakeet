@@ -5,7 +5,7 @@ from torchmetrics.classification import BinaryF1Score, BinaryPrecision, BinaryRe
 
 from eval import evaluate_bc5
 
-class Model(nn.Module):
+class SWCnn(nn.Module):
     def __init__(self,
                  we,
                  word_embedding_size: int = 300,
@@ -22,9 +22,9 @@ class Model(nn.Module):
                  conv1_out_channels: int = 16,
                  conv2_out_channels: int = 16,
                  conv3_out_channels: int = 16,
-                 conv1_length: int = 2,
-                 conv2_length: int = 3,
-                 conv3_length: int = 4
+                 conv1_length: int = 1,
+                 conv2_length: int = 2,
+                 conv3_length: int = 3
                  ):
 
         super(Model, self).__init__()
@@ -77,7 +77,7 @@ class Model(nn.Module):
         self.dense_to_tag = nn.Linear(in_features=conv1_out_channels + conv2_out_channels + conv3_out_channels,
                                       out_features=2,
                                       bias=False)
-        self.softmax = nn.Softmax(dim=1)
+        self.softmax = nn.Softmax(dim=0)
 
     def forward(self, x):
         word_embedding_ent1 = self.w2v(x[:, :, 0].long())
@@ -102,20 +102,37 @@ class Model(nn.Module):
         dep = self.normalize_dep(dep)
 
         x = torch.cat((tokens_ent1, dep, tokens_ent2), dim=2)
+        # print(x.shape)
 
         x = x.unsqueeze(1)
+        # print(x.shape)
 
         x1 = self.conv1(x)
         x2 = self.conv2(x)
         x3 = self.conv3(x)
+        # print(x1.shape, x2.shape, x3.shape)
 
-        x1 = torch.max(x1.squeeze(dim=3), dim=2)[0]
-        x2 = torch.max(x2.squeeze(dim=3), dim=2)[0]
-        x3 = torch.max(x3.squeeze(dim=3), dim=2)[0]
+        x1 = x1.squeeze(dim=3).permute(1, 0, 2)
+        x2 = x2.squeeze(dim=3).permute(1, 0, 2)
+        x3 = x3.squeeze(dim=3).permute(1, 0, 2)
+        # print(x1.shape, x2.shape, x3.shape)
 
-        x = torch.cat((x1, x2, x3), dim=1)
+        x1 = x1.flatten(1, 2)
+        x2 = x2.flatten(1, 2)
+        x3 = x3.flatten(1, 2)
+        # print(x1.shape, x2.shape, x3.shape)
+
+        x1 = torch.max(x1, dim=1)[0]
+        x2 = torch.max(x2, dim=1)[0]
+        x3 = torch.max(x3, dim=1)[0]
+        # print(x1.shape, x2.shape, x3.shape)
+
+        x = torch.cat([x1, x2, x3], dim=0)
+        # print(x.shape)
         x = self.dense_to_tag(x)
+        # print(x.shape)
         x = self.softmax(x)
+        # print(x.shape)
 
         return x
 
@@ -142,7 +159,7 @@ class Trainer:
                  conv3_length: int = 4,
                  device='cpu'):
         
-        self.model = Model(we,
+        self.model = SWCnn(we,
                            word_embedding_size, 
                            tag_number,
                            tag_embedding_size, 

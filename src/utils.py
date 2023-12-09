@@ -165,6 +165,13 @@ def get_tensors_simul_paths(lookup: dict,
         if select_option == "random":
             if top_k < len(X_tmp):
                 X_tmp = X_tmp[:top_k]
+        elif select_option == "shortest":
+            if top_k < len(X_tmp):
+                X_tmp = sorted(X_tmp, key=lambda x: len(x))[:top_k]
+        elif select_option == "longest":
+            if top_k < len(X_tmp):
+                X_tmp = sorted(X_tmp, key=lambda x: len(x), reverse=True)[:top_k]
+
         X.append(X_tmp)
         y.append(y_tmp)
 
