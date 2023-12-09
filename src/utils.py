@@ -141,6 +141,7 @@ def prepare_dict_simul_paths(lookup, X, y):
             to_return_dict[k] = (tmp, label)
 
     return to_return_dict
+
 def get_tensors_simul_paths(lookup: dict,
                             select_option: str,
                             top_k: int):
