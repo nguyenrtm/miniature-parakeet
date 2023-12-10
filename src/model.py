@@ -193,35 +193,27 @@ class Trainer:
         self.inter_r = []
         self.inter_f = []
         
-    def convert_label_to_2d(self, batch_label):
-        i = 0
-        for label in batch_label:
-            i += 1
-            if label == torch.tensor([0]).to(self.device):
-                tmp = torch.tensor([1., 0.]).to(self.device)
-            else:
-                tmp = torch.tensor([0., 1.]).to(self.device)
-            
-            if i == 1:
-                to_return = tmp.unsqueeze(0)
-            else:
-                to_return = torch.vstack((to_return, tmp))
+    def convert_label_to_2d(self, label):
+        if label == torch.tensor([0]).to(self.device):
+            tmp = torch.tensor([1., 0.]).to(self.device)
+        else:
+            tmp = torch.tensor([0., 1.]).to(self.device)
         
-        return to_return
+        return tmp
                 
 
-    def train_one_epoch(self, training_loader):
+    def train_one_epoch(self, training_data):
         running_loss = 0.
         i = 0
 
-        for batch_data, batch_label in training_loader:
-            batch_data = torch.tensor(batch_data).to(self.device)
-            batch_label = torch.tensor(batch_label).to(self.device)
-            batch_label = self.convert_label_to_2d(batch_label)
+        for data, label in training_data:
+            data = data.to(self.device)
+            label = self.convert_label_to_2d(label)
             i += 1
             self.optimizer.zero_grad()
-            outputs = self.model(batch_data)
-            loss = self.criterion(outputs, batch_label)
+            outputs = self.model(data)
+            print(outputs, label)
+            loss = self.criterion(outputs, label)
             loss.backward()
             self.optimizer.step()
 
@@ -230,29 +222,22 @@ class Trainer:
         return running_loss
 
     
-    def validate(self, validation_loader, loss_list):
+    def validate(self, test_data, loss_list):
         running_loss = 0.
         predictions = torch.tensor([]).to(self.device)
         labels = torch.tensor([]).to(self.device)
         
         with torch.no_grad():
-            for batch_data, batch_label in validation_loader:
-                batch_data = torch.tensor(batch_data).to(self.device)
-                batch_label = torch.tensor(batch_label).to(self.device)
-                outputs = self.model(batch_data)
-                batch_label_for_loss = self.convert_label_to_2d(batch_label)
-                loss = self.criterion(outputs, batch_label_for_loss)
+            for data, label in test_data:
+                data = data.to(self.device)
+                label = label.to(self.device)
+                outputs = self.model(data)
+                label_for_loss = self.convert_label_to_2d(label)
+                loss = self.criterion(outputs, label_for_loss)
                 running_loss += loss.item()
-                
-                batch_prediction = torch.argmax(outputs, dim=1)
-                predictions = torch.cat((predictions, batch_prediction))
-                labels = torch.cat((labels, batch_label))
-        
-        labels = labels.squeeze()
-        true_pred = []
-        for i in range(len(labels)):
-            if labels[i].cpu() == 1:
-                true_pred.append(i)
+                prediction = torch.argmax(outputs).unsqueeze(dim=0)
+                predictions = torch.cat((predictions, prediction))
+                labels = torch.cat((labels, label))
 
         f1 = BinaryF1Score().to(self.device)(predictions, labels)
         p = BinaryPrecision().to(self.device)(predictions, labels)
@@ -261,8 +246,8 @@ class Trainer:
         loss_list.append([running_loss, f1.item(), p.item(), r.item()])
         return predictions
     
-    def eval_bc5(self, pred, df):
-        dct, lst = self.convert_pred_to_lst(pred, df)
+    def eval_bc5(self, pred, lookup):
+        lst = self.convert_pred_to_lst(pred, lookup)
         return_tuple = evaluate_bc5(lst)
         self.p.append(return_tuple[0][0])
         self.r.append(return_tuple[0][1])
@@ -276,58 +261,32 @@ class Trainer:
         return return_tuple
 
     
-    def train(self, training_loader, validation_loader, num_epochs):
+    def train(self, training_data, test_data, num_epochs):
         loss = list()
 
         for epoch in range(num_epochs):
-            running_loss = self.train_one_epoch(training_loader)
+            running_loss = self.train_one_epoch(training_data)
             loss.append(running_loss)
             print(f"Epoch {epoch + 1}")
             
             print("===== Validation =====")
             print("Training set:")
-            pred_train = self.validate(training_loader, self.train_loss_list)
+            pred_train = self.validate(training_data, self.train_loss_list)
             print(self.train_loss_list[-1])
-            print("Validation set:")
-            pred_val = self.validate(validation_loader, self.val_loss_list)
+            print("Test set:")
+            pred_val = self.validate(test_data, self.val_loss_list)
             print(self.val_loss_list[-1])
         return pred_train, pred_val
 
-    def convert_pred_to_lst(self, pred, df):
-        dct = {}
-        for i in range(len(pred)):
+    def convert_pred_to_lst(self, pred, lookup):
+        lst = list()
+        i = 0
+        for k, v in lookup.items():
             if pred[i] == 1:
-                if df.iloc[i]['ent1_id'] == '-1' or df.iloc[i]['ent2_id'] == '-1':
-                    continue
-                elif len(df.iloc[i]['ent1_id'].split('|')) > 1:
-                    tmp = df.iloc[i]['ent1_id'].split('|')
-                    for ent in tmp:
-                        idx = df.iloc[i]['sent_id'].split('_')[0]
-                        if idx in dct.keys():
-                            if f"{ent}_{df.iloc[i]['ent2_id']}" not in dct[idx]:
-                                dct[idx].append(f"{ent}_{df.iloc[i]['ent2_id']}")
-                        else:
-                            dct[idx] = [f"{ent}_{df.iloc[i]['ent2_id']}"]
-                elif len(df.iloc[i]['ent2_id'].split('|')) > 1:
-                    tmp = df.iloc[i]['ent2_id'].split('|')
-                    for ent in tmp:
-                        idx = df.iloc[i]['sent_id'].split('_')[0]
-                        if idx in dct.keys():
-                            if f"{df.iloc[i]['ent1_id']}_{ent}" not in dct[idx]:
-                                dct[idx].append(f"{df.iloc[i]['ent1_id']}_{ent}")
-                        else:
-                            dct[idx] = [f"{df.iloc[i]['ent1_id']}_{ent}"]
-                else:
-                    idx = df.iloc[i]['sent_id'].split('_')[0]
-                    if idx in dct.keys():
-                        if f"{df.iloc[i]['ent1_id']}_{df.iloc[i]['ent2_id']}" not in dct[idx]:
-                            dct[idx].append(f"{df.iloc[i]['ent1_id']}_{df.iloc[i]['ent2_id']}")
-                    else:
-                        dct[idx] = [f"{df.iloc[i]['ent1_id']}_{df.iloc[i]['ent2_id']}"]
+                abs_id = k[0]
+                ent1_id = k[1]
+                ent2_id = k[2]
+                lst.append((abs_id, f"{ent1_id}_{ent2_id}", "CID"))
+            i += 1
 
-        lst = []
-        for k, v in dct.items():
-            for _ in v:
-                lst.append((k, _, "CID"))
-
-        return dct, lst
+        return lst
