@@ -27,7 +27,7 @@ class SWCnn(nn.Module):
                  conv3_length: int = 3
                  ):
 
-        super(Model, self).__init__()
+        super(SWCnn, self).__init__()
 
         self.w2v = nn.Embedding.from_pretrained(torch.tensor(we.vectors))
         self.tag_embedding = nn.Embedding(tag_number, tag_embedding_size, padding_idx=0)
