@@ -194,7 +194,7 @@ class Trainer:
         self.inter_f = []
         
     def convert_label_to_2d(self, label):
-        if label == torch.tensor([0]).to(self.device):
+        if label.to(self.device) == torch.tensor([0]).to(self.device):
             tmp = torch.tensor([1., 0.]).to(self.device)
         else:
             tmp = torch.tensor([0., 1.]).to(self.device)
@@ -212,7 +212,6 @@ class Trainer:
             i += 1
             self.optimizer.zero_grad()
             outputs = self.model(data)
-            print(outputs, label)
             loss = self.criterion(outputs, label)
             loss.backward()
             self.optimizer.step()
