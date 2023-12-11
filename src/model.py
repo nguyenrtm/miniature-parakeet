@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torchmetrics.classification import BinaryF1Score, BinaryPrecision, BinaryRecall
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
 
 from eval import evaluate_bc5
 
@@ -281,15 +283,8 @@ class Trainer:
         for epoch in range(num_epochs):
             running_loss = self.train_one_epoch(training_data)
             loss.append(running_loss)
-            print(f"Epoch {epoch + 1}")
-            
-            print("===== Validation =====")
-            print("Training set:")
             pred_train = self.validate(training_data, self.train_loss_list)
-            print(self.train_loss_list[-1])
-            print("Test set:")
             pred_val = self.validate(test_data, self.val_loss_list)
-            print(self.val_loss_list[-1])
         return pred_train, pred_val
 
     def convert_pred_to_lst(self, pred, lookup):
@@ -304,3 +299,10 @@ class Trainer:
             i += 1
 
         return lst
+    
+    def confusion_matrix_display(self, label, test_pred):
+        cm = confusion_matrix(label, test_pred, labels=[0, 1])
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm,
+                                      display_labels=[0, 1])
+        disp.plot()
+        plt.show()
