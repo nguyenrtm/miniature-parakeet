@@ -176,3 +176,10 @@ def get_tensors_simul_paths(lookup: dict,
         y.append(y_tmp)
 
     return X, y
+
+def get_dict_index(dct, idx):
+    i = 0
+    for k, v in dct.items():
+        if i == idx:
+            return k, v
+        i += 1

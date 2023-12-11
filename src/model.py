@@ -179,7 +179,11 @@ class Trainer:
                            conv3_length).to(device)
         
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        
+        self.optimizer = optim.Adam(self.model.parameters(), 
+                                    lr=lr, 
+                                    weight_decay=1e-4)
+        
         self.device = device
         self.train_loss_list = []
         self.val_loss_list = []
