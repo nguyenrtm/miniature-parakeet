@@ -27,6 +27,7 @@ class SpacyFeatures:
         self.nlp.tokenizer.add_special_case("M.S.", [{ORTH: "M.S."}])
         self.nlp.tokenizer.add_special_case("ng.", [{ORTH: "ng."}])
         self.nlp.tokenizer.add_special_case("ml.", [{ORTH: "ml."}])
+        self.nlp.tokenizer.add_special_case(u'sgk1(+/+)', [{ORTH: u'sgk1(+/+)'}])
         
     def wordTokenizer(self, text):
         doc = self.nlp(text)
