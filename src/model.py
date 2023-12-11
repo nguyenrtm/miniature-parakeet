@@ -24,7 +24,8 @@ class SWCnn(nn.Module):
                  conv3_out_channels: int = 16,
                  conv1_length: int = 1,
                  conv2_length: int = 2,
-                 conv3_length: int = 3
+                 conv3_length: int = 3,
+                 dropout_rate: float = 0.5,
                  ):
 
         super(SWCnn, self).__init__()
@@ -52,7 +53,7 @@ class SWCnn(nn.Module):
                       kernel_size=(conv1_length, token_embedding_size * 2 + dep_embedding_size),
                       stride=1,
                       bias=False),
-            nn.Dropout(0.5),
+            nn.Dropout(dropout_rate),
             nn.ReLU()
         )
 
@@ -62,7 +63,7 @@ class SWCnn(nn.Module):
                       kernel_size=(conv2_length, token_embedding_size * 2 + dep_embedding_size),
                       stride=1,
                       bias=False),
-            nn.Dropout(0.5),
+            nn.Dropout(dropout_rate),
             nn.ReLU()
         )
 
@@ -72,12 +73,12 @@ class SWCnn(nn.Module):
                       kernel_size=(conv3_length, token_embedding_size * 2 + dep_embedding_size),
                       stride=1,
                       bias=False),
-            nn.Dropout(0.5),
+            nn.Dropout(dropout_rate),
             nn.ReLU()
         )
 
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.5)
+        self.dropout = nn.Dropout(dropout_rate)
         self.dense_to_tag = nn.Linear(in_features=conv1_out_channels + conv2_out_channels + conv3_out_channels,
                                       out_features=2,
                                       bias=False)
@@ -146,7 +147,8 @@ class SWCnn(nn.Module):
 class Trainer:
     def __init__(self,
                  we,
-                 lr,
+                 lr: float = 0.0001,
+                 weight_decay: float = 1e-4,
                  word_embedding_size: int = 300,
                  tag_number: int = 51,
                  tag_embedding_size: int = 50,
@@ -164,6 +166,7 @@ class Trainer:
                  conv1_length: int = 1,
                  conv2_length: int = 2,
                  conv3_length: int = 3,
+                 dropout_rate: float = 0.5,
                  device='cpu'):
         
         self.model = SWCnn(we,
@@ -183,13 +186,14 @@ class Trainer:
                            conv3_out_channels,
                            conv1_length,
                            conv2_length,
-                           conv3_length).to(device)
+                           conv3_length,
+                           dropout_rate).to(device)
         
         self.criterion = nn.CrossEntropyLoss()
 
         self.optimizer = optim.Adam(self.model.parameters(), 
                                     lr=lr, 
-                                    weight_decay=1e-4)
+                                    weight_decay=weight_decay)
         
         self.device = device
         self.train_loss_list = []
