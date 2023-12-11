@@ -52,6 +52,7 @@ class SWCnn(nn.Module):
                       kernel_size=(conv1_length, token_embedding_size * 2 + dep_embedding_size),
                       stride=1,
                       bias=False),
+            nn.Dropout(0.5),
             nn.ReLU()
         )
 
@@ -61,6 +62,7 @@ class SWCnn(nn.Module):
                       kernel_size=(conv2_length, token_embedding_size * 2 + dep_embedding_size),
                       stride=1,
                       bias=False),
+            nn.Dropout(0.5),
             nn.ReLU()
         )
 
@@ -70,10 +72,12 @@ class SWCnn(nn.Module):
                       kernel_size=(conv3_length, token_embedding_size * 2 + dep_embedding_size),
                       stride=1,
                       bias=False),
+            nn.Dropout(0.5),
             nn.ReLU()
         )
 
         self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(0.5)
         self.dense_to_tag = nn.Linear(in_features=conv1_out_channels + conv2_out_channels + conv3_out_channels,
                                       out_features=2,
                                       bias=False)
@@ -81,25 +85,28 @@ class SWCnn(nn.Module):
 
     def forward(self, x):
         word_embedding_ent1 = self.w2v(x[:, :, 0].long())
-        tag_embedding_ent1 = self.tag_embedding(x[:, :, 1].long())
-        position_embedding_ent1 = self.normalize_position(x[:, :, 2:6])
+        tag_embedding_ent1 = self.dropout(self.tag_embedding(x[:, :, 1].long()))
+        position_embedding_ent1 = self.dropout(self.normalize_position(x[:, :, 2:6]))
         position_embedding_ent1 = self.relu(position_embedding_ent1)
 
-        direction_embedding = self.direction_embedding(x[:, :, 6].long())
-        edge_embedding = self.edge_embedding(x[:, :, 7].long())
+        direction_embedding = self.dropout(self.direction_embedding(x[:, :, 6].long()))
+        edge_embedding = self.dropout(self.edge_embedding(x[:, :, 7].long()))
 
         word_embedding_ent2 = self.w2v(x[:, :, 8].long())
-        tag_embedding_ent2 = self.tag_embedding(x[:, :, 9].long())
-        position_embedding_ent2 = self.normalize_position(x[:, :, 10:14])
+        tag_embedding_ent2 = self.dropout(self.tag_embedding(x[:, :, 9].long()))
+        position_embedding_ent2 = self.dropout(self.normalize_position(x[:, :, 10:14]))
         position_embedding_ent2 = self.relu(position_embedding_ent2)
 
         tokens_ent1 = torch.cat((word_embedding_ent1, tag_embedding_ent1, position_embedding_ent1), dim=2).float()
         tokens_ent2 = torch.cat((word_embedding_ent2, tag_embedding_ent2, position_embedding_ent2), dim=2).float()
         dep = torch.cat((direction_embedding, edge_embedding), dim=2).float()
 
-        tokens_ent1 = self.normalize_tokens(tokens_ent1)
-        tokens_ent2 = self.normalize_tokens(tokens_ent2)
-        dep = self.normalize_dep(dep)
+        tokens_ent1 = self.dropout(self.normalize_tokens(tokens_ent1))
+        tokens_ent1 = self.relu(tokens_ent1)
+        tokens_ent2 = self.dropout(self.normalize_tokens(tokens_ent2))
+        tokens_ent2 = self.relu(tokens_ent2)
+        dep = self.dropout(self.normalize_dep(dep))
+        dep = self.relu(dep)
 
         x = torch.cat((tokens_ent1, dep, tokens_ent2), dim=2)
         # print(x.shape)
@@ -179,7 +186,7 @@ class Trainer:
                            conv3_length).to(device)
         
         self.criterion = nn.CrossEntropyLoss()
-        
+
         self.optimizer = optim.Adam(self.model.parameters(), 
                                     lr=lr, 
                                     weight_decay=1e-4)
