@@ -1,5 +1,3 @@
-from spacy_features import SpacyFeatures
-from one_hot import OneHotEncoder
 import torch
 
 class SentenceFeatureBuilder:

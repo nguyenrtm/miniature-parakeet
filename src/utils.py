@@ -1,7 +1,6 @@
 import codecs
 import torch
 import numpy as np
-from nltk.corpus import wordnet as wn
 import pickle as pkl
 
 

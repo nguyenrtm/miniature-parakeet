@@ -2,9 +2,7 @@ from typing import Union, Iterable
 import spacy
 import torch
 
-from one_hot import OneHotEncoder
 from utils import get_trimmed_w2v_vectors, load_vocab
-from sentence_feature_builder import SentenceFeatureBuilder
 
 class WordEmbedding:
     def __init__(self, path='../cache/w2v/biocreative_fasttext_pm.npz'):
@@ -13,6 +11,7 @@ class WordEmbedding:
 
     def get_word_vector(self, word):
         if word not in self.vocab.keys():
+            print(word)
             return torch.tensor(self.vectors[-1]) # $UNK$ vector
         else:
             return torch.tensor(self.vectors[self.vocab[word]])
